@@ -67,4 +67,8 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    // Google Maps Compose の依存関係
+    implementation(libs.google.play.services.maps)
+    implementation(libs.google.maps.compose)
 }
