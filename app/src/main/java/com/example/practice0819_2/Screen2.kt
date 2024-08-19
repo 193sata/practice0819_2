@@ -14,7 +14,7 @@ class Screen2 {
             contentAlignment = Alignment.Center,
             modifier = Modifier.fillMaxSize()
         ) {
-            BasicText(text = "これは画面2です")
+            BasicText(text = "これは画面2です。")
         }
     }
 }
