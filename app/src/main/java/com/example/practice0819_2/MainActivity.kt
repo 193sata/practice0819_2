@@ -21,7 +21,7 @@ class MainActivity : ComponentActivity() {
             val navController = rememberNavController()
             NavHost(navController = navController, startDestination = "main") {
                 composable("main") { MainScreen(navController) }
-                composable("screen1") { Screen1().Content() }
+                composable("screen1") { Screen1().Content(navController) }
                 composable("screen2") { Screen2().Content() }
                 composable("screen3") { Screen3().Content() }
                 composable("screen4") { Screen4().Content() }

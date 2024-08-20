@@ -12,20 +12,33 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.IOException
+import kotlin.math.*
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 
-class Map(
-    private val userLocation: LatLng,
-    private val zoomLevel: Float
-) {
-
+class Map(private val zoomLevel: Float) {
+    val user = User()
     // 避難所のリスト
     private val shelterPoints: MutableList<ShelterPoint> = mutableListOf()
 
     // 避難所のデータクラス
-    data class ShelterPoint(val name: String, val latitude: Double, val longitude: Double)
+    data class ShelterPoint(val name: String, val latitude: Double, val longitude: Double, val distance: Double)
+
+    // 地球の半径 (メートル)
+    private val earthRadius = 6371000.0
+
+    // 距離計算用関数 (ハーバサインの公式を使用)
+    private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+        val a = sin(dLat / 2) * sin(dLat / 2) +
+                cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) *
+                sin(dLon / 2) * sin(dLon / 2)
+        val c = 2 * atan2(sqrt(a), sqrt(1 - a))
+        return earthRadius * c
+    }
 
     // 初期化時にCSVファイルを読み込んで避難所リストに追加
-    // 現在地から半径3キロ以内を取得
+    // 現在地から半径2キロ以内を取得
     @Composable
     fun Content(modifier: Modifier = Modifier) {
         val context = LocalContext.current
@@ -49,9 +62,17 @@ class Map(
                 val longitude = tokens.getOrNull(longitudeIndex)?.toDoubleOrNull()
 
                 if (name != null && latitude != null && longitude != null) {
-                    shelterPoints.add(ShelterPoint(name, latitude, longitude))
-                    // デバッグ用のログ出力
-                    println("Added shelter: $name at ($latitude, $longitude)")
+                    // 距離を計算
+                    val distance = calculateDistance(
+                        user.location.latitude, user.location.longitude,
+                        latitude, longitude
+                    )
+                    // 2キロメートル以内の避難所のみ追加
+                    if (distance <= 2000) {
+                        shelterPoints.add(ShelterPoint(name, latitude, longitude, distance))
+                        // デバッグ用のログ出力
+                        println("Added shelter: $name at ($latitude, $longitude), Distance: $distance meters")
+                    }
                 } else {
                     println("Invalid shelter data: $line")
                 }
@@ -61,20 +82,24 @@ class Map(
             e.printStackTrace()
         }
 
+        // 一番近い避難所を特定
+        val closestShelter = shelterPoints.minByOrNull { it.distance }
+
         // カメラポジションの初期設定
         val cameraPositionState = rememberCameraPositionState {
-            position = CameraPosition.fromLatLngZoom(userLocation, zoomLevel)
+            position = CameraPosition.fromLatLngZoom(user.location, zoomLevel)
         }
 
         GoogleMap(
             modifier = modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState
         ) {
-            // 初期ピンを立てる
+            // 現在地のピンを立てる（赤色）
             Marker(
-                position = userLocation,
+                position = user.location,
                 title = "現在地",
-                snippet = "あなたの現在地"
+                snippet = "あなたの現在地",
+                icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)
             )
 
             // 避難所のピンを立てる
@@ -82,10 +107,13 @@ class Map(
                 Marker(
                     position = LatLng(shelter.latitude, shelter.longitude),
                     title = shelter.name,
-                    snippet = "避難所"
+                    snippet = "避難所",
+                    icon = when (shelter) {
+                        closestShelter -> BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)
+                        else -> BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)
+                    }
                 )
             }
         }
     }
-
 }
